@@ -1,0 +1,15 @@
+# Rabbit MQ
+rabbitmq:
+  username: guest
+  password: guest
+  host: localhost
+  virtual-host: /
+  port: 5672
+
+# Card Status Notification
+card-notification:
+  exchange: card-notification-header-exchange
+  header: json__TypeId__
+  status-changed:
+    queue: card-status-changed.queue
+    key: card-status-changed
