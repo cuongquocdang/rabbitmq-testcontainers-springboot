@@ -6,8 +6,6 @@ import org.springframework.amqp.core.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import static com.example.rabbittestcontainers.utils.MessagingUtil.*;
-
 @Configuration
 @RequiredArgsConstructor
 public class MessagingConfig {
@@ -16,7 +14,7 @@ public class MessagingConfig {
 
     @Bean
     public HeadersExchange cardNotificationHeaderExchange() {
-        return new HeadersExchange(cardNotificationProperties.getExchange());
+        return new HeadersExchange(cardNotificationProperties.getNotificationExchange());
     }
 
     @Bean
@@ -29,16 +27,16 @@ public class MessagingConfig {
         return QueueBuilder
                 .durable(cardNotificationProperties.getStatusChanged().getQueue())
                 .deadLetterExchange(cardNotificationProperties.getDeadLetterExchange())
-                .deadLetterRoutingKey(cardNotificationProperties.getStatusChanged().getDLQWithSuffix())
+                .deadLetterRoutingKey(cardNotificationProperties.getStatusChanged().getDeadLetterQueue())
                 .build();
     }
 
     @Bean
     public Queue cardStatusChangedDeadLetterQueue() {
         return QueueBuilder
-                .durable(cardNotificationProperties.getStatusChanged().getDLQWithSuffix())
+                .durable(cardNotificationProperties.getStatusChanged().getDeadLetterQueue())
                 .deadLetterExchange(cardNotificationProperties.getDeadLetterExchange())
-                .deadLetterRoutingKey(cardNotificationProperties.getStatusChanged().getQueueWithSuffix())
+                .deadLetterRoutingKey(cardNotificationProperties.getStatusChanged().getQueue())
                 .ttl(cardNotificationProperties.getMessageTimeToLive())
                 .build();
     }
@@ -46,7 +44,7 @@ public class MessagingConfig {
     @Bean
     public Queue cardStatusChangedParkingLotQueue() {
         return QueueBuilder
-                .durable(cardNotificationProperties.getStatusChanged().getPLQWithSuffix())
+                .durable(cardNotificationProperties.getStatusChanged().getParkingLotQueue())
                 .build();
     }
 
@@ -56,7 +54,7 @@ public class MessagingConfig {
         return BindingBuilder
                 .bind(cardStatusChangedQueue)
                 .to(cardNotificationHeaderExchange)
-                .where(cardNotificationProperties.getHeader())
+                .where(cardNotificationProperties.getNotificationHeader())
                 .matches(cardNotificationProperties.getStatusChanged().getKey());
     }
 
@@ -69,15 +67,15 @@ public class MessagingConfig {
                 BindingBuilder
                         .bind(cardStatusChangedQueue)
                         .to(deadLetterTopicExchange)
-                        .with(formatQueue(cardStatusChangedQueue.getName())),
+                        .with(cardStatusChangedQueue.getName()),
                 BindingBuilder
                         .bind(cardStatusChangedDeadLetterQueue)
                         .to(deadLetterTopicExchange)
-                        .with(formatDLQ(cardStatusChangedQueue.getName())),
+                        .with(cardStatusChangedDeadLetterQueue.getName()),
                 BindingBuilder
                         .bind(cardStatusChangedParkingLotQueue)
                         .to(deadLetterTopicExchange)
-                        .with(formatPLQ(cardStatusChangedQueue.getName()))
+                        .with(cardStatusChangedParkingLotQueue.getName())
         );
     }
 

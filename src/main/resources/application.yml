@@ -15,11 +15,14 @@ rabbitmq:
 
 # Card Status Notification
 card-notification:
-  exchange: card-notification-header-exchange
-  header: json__TypeId__
+  enabled: true
+  notification-exchange: card-notification-header-exchange
+  notification-header: json__TypeId__
   dead-letter-exchange: dead-letter-exchange
   message-time-to-live: 2500
-  max-dead-threshold: 15
+  max-dead-threshold: 5
   status-changed:
     queue: card-status-changed.queue
+    dead-letter-queue: card-status-changed.dlq
+    parking-lot-queue: card-status-changed.plq
     key: card-status-changed

@@ -9,9 +9,13 @@ import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+
 @Service
+@ConditionalOnProperty(prefix = "card-notification", name = "enabled", havingValue = "true")
 @Slf4j
 public class CardStatusChangedNotificationService {
 
@@ -42,6 +46,7 @@ public class CardStatusChangedNotificationService {
         } catch (Exception exception) {
             log.error("An exception occurs while publishing message: {}", exception.getMessage());
             if (hasExceededRetryableCount(receivedMessage)) {
+                // for monitoring
                 sendBackToParkingLot(receivedMessage);
             } else {
                 // retryable
@@ -55,7 +60,7 @@ public class CardStatusChangedNotificationService {
     }
 
     private String getParkingLotQueue() {
-        return cardNotificationProperties.getStatusChanged().getPLQWithSuffix();
+        return cardNotificationProperties.getStatusChanged().getParkingLotQueue();
     }
 
     private int getMaxDeadThreshold() {
@@ -75,8 +80,15 @@ public class CardStatusChangedNotificationService {
     }
 
     private void sendBackToParkingLot(Message failedMessage) {
+        var deadLetterExchange = getDeadLetterExchange();
         var plqRouteKey = getParkingLotQueue();
-        log.info("Retries exceeded send back message: {} to parking lot", failedMessage);
-        rabbitTemplate.send(cardNotificationProperties.getDeadLetterExchange(), plqRouteKey, failedMessage);
+        log.info("Retries exceeded send back message: {} and properties: {} to parking lot",
+                new String(failedMessage.getBody(), StandardCharsets.UTF_8),
+                failedMessage.getMessageProperties());
+        rabbitTemplate.send(deadLetterExchange, plqRouteKey, failedMessage);
+    }
+
+    private String getDeadLetterExchange() {
+        return cardNotificationProperties.getDeadLetterExchange();
     }
 }
